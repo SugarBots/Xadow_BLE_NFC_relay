@@ -477,40 +477,18 @@ int Offset = Active_Offset;
  //myBLE.println("Sending Data");
  
 volatile rawRecord myPacket;
-/*
-//function to format and send the passed Dexom_packet.
-void print_packet(Dexcom_packet* pPkt)
-{
-  //int dly_time = 0;
-  XDATA RawRecord msg;
-  //prepare the message
-  */
+
   myPacket.cmd_code = 0x00;
   myPacket.raw = BloodGlucose;
   myPacket.filtered = BloodGlucose;
   myPacket.dex_battery = 0;
-  myPacket.my_battery = 99;
-  //myPacket.my_battery = battery_capacity;
-  //msg.dex_src_id = dex_tx_id;
-  myPacket.dex_src_id = 12345;
-  myPacket.size = sizeof(myPacket);
+  myPacket.my_battery = 99; //insert battery capacity
+  myPacket.dex_src_id = 12345; //dummy dex id
   myPacket.function = 01; // basic functionality, data packet (with ack), TXID packet, beacon packet (also TXID ack).
-  send_data(myPacket, myPacket.size);
- 
- 
- Serial.println(librePacket);
- myBLE.println(librePacket);
- //myBLE.println(BloodGlucose,1);
- }
-void send_data( uint8_t  *msg, uint8_t len)
-{
-  uint8 i = 0;
-
-  for(i=0; i < len; i++)
-  {
-    //uart1TxSendByte(msg[i]);
-    myBLE.write(msg[i].HEX);
-  }
+  myPacket.size = sizeof(myPacket);
+  
+  Serial.println((myPacket.cmd_code,HEX)+(myPacket.raw,DEC)+(myPacket.filtered,DEC)+(myPacket.dex_battery, DEC)+(myPacket.my_battery,DEC)+(myPacket.dex_src_id,DEC)+(myPacket.size,DEC)+(myPacket.function,DEC));
+  myBLE.println((myPacket.cmd_code,HEX)+(myPacket.raw,DEC)+(myPacket.filtered,DEC)+(myPacket.dex_battery, DEC)+(myPacket.my_battery,DEC)+(myPacket.dex_src_id,DEC)+(myPacket.size,DEC)+(myPacket.function,DEC));
  }
  
  String Read_SoftSerial(SoftwareSerial inputSerial)
