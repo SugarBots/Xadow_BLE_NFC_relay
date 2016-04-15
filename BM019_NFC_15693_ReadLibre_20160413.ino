@@ -2,7 +2,6 @@
 #include <Boards.h>
 #include <Firmata.h>
 #include <SoftwareSerial.h>
-//#include <SerialGSM.h>
 
 /*
 NFC Communication with the Solutions Cubed, LLC BM019 
@@ -16,7 +15,12 @@ Wiring:
  MOSI: pin 11     MOSI: pin 5 
  MISO: pin 12     MISO: pin4
  SCK: pin 13      SCK: pin 6
- 
+
+
+ Xdrip input from nightscout community
+ data packet info from JoernL LimiTTer project
+
+ This arduino project is purely experimental and should not be used to replace proven medical technologies and advice
  */
 
 // the sensor communicates using SPI, so include the library:
@@ -29,21 +33,6 @@ int secondPass_Read = 0;
 String fail_Read;
 int get_Active_Offset = 0;
 byte Active_Offset = 0;
-
-typedef struct rawRecord
-{
-  uint8_t size; //size of the packet.
-  uint8_t cmd_code; // code for this data packet.  Always 00 for a Dexcom data packet.
-  uint32_t  raw;  //"raw" BGL value.
-  uint32_t  filtered; //"filtered" BGL value 
-  uint8_t dex_battery;  //battery value
-  uint8_t my_battery; //xBridge battery value
-  uint32_t  dex_src_id;   //raw TXID of the Dexcom Transmitter
-  //int8  RSSI; //RSSI level of the transmitter, used to determine if it is in range.
-  //uint8 txid; //ID of this transmission.  Essentially a sequence from 0-63
-  uint8_t function; // Byte representing the xBridge code funcitonality.  01 = this level.
-};
-
 
 const int SSPin = 10;  // Slave Select pin
 const int IRQPin = 9;  // Sends wake-up pulse
@@ -70,25 +59,10 @@ void setup() {
    myBLE.begin(9600);
    delay(100);
    myBLE.print("AT+RESET");
-   myBLE.print("AT+ADDR?");
-   //waitForResponse(myBLE);
-   
-   myBLE.print("AT+VERSION?");
-   //waitForResponse(myBLE);
-
-   myBLE.print("AT+ADDR?");
-   String myBLE_ID = Read_SoftSerial(myBLE);
-   
-   Serial.println(myBLE_ID);
-   myBLE_ID = myBLE_ID.substring(0,2);
-   myBLE_ID = ("xLibre")+ myBLE_ID;
-   myBLE.write("AT+NAME?");
-   //waitForResponse(myBLE);
+   String myBLE_ID = ("xLibre");
    myBLE.print("AT+NAME" + myBLE_ID);
-   myBLE.print("AT+NAMExBridge%02x%02x");
-   myBLE.print("AT+RESET");
-   //"AT+NAMExBridge%02x%02x", serialNumber[0],serialNumber[1])
-   
+   //myBLE.print("AT+NAMExBridge%02x%02x");
+  //"AT+NAMExBridge%02x%02x", serialNumber[0],serialNumber[1])
    
    Serial.println(myBLE_ID);
    
@@ -443,6 +417,7 @@ void Read_Memory()
  {
   byte rawBG;
   float BloodGlucose;
+  float xBG_raw;
   String bgConstant_String = "H1FFF";
   int bgConstant = 8191;
   
@@ -475,20 +450,19 @@ int Offset = Active_Offset;
  Serial.println("Calculated Glucose in mmol: ");
  Serial.println(BloodGlucose,1);
  //myBLE.println("Sending Data");
+ xBG_raw = BloodGlucose*18.1;
+ xBG_raw = xBG_raw*733;
  
-volatile rawRecord myPacket;
+ char str_temp[7];
+ dtostrf(xBG_raw, 6, 0, str_temp);
+ Serial.println("Calculated Glucose in mgdl: ");
+ Serial.println(str_temp);
 
-  myPacket.cmd_code = 0x00;
-  myPacket.raw = BloodGlucose;
-  myPacket.filtered = BloodGlucose;
-  myPacket.dex_battery = 0;
-  myPacket.my_battery = 99; //insert battery capacity
-  myPacket.dex_src_id = 12345; //dummy dex id
-  myPacket.function = 01; // basic functionality, data packet (with ack), TXID packet, beacon packet (also TXID ack).
-  myPacket.size = sizeof(myPacket);
-  
-  Serial.println((myPacket.cmd_code,HEX)+(myPacket.raw,DEC)+(myPacket.filtered,DEC)+(myPacket.dex_battery, DEC)+(myPacket.my_battery,DEC)+(myPacket.dex_src_id,DEC)+(myPacket.size,DEC)+(myPacket.function,DEC));
-  myBLE.println((myPacket.cmd_code,HEX)+(myPacket.raw,DEC)+(myPacket.filtered,DEC)+(myPacket.dex_battery, DEC)+(myPacket.my_battery,DEC)+(myPacket.dex_src_id,DEC)+(myPacket.size,DEC)+(myPacket.function,DEC));
+ char buffer[14];
+ //sprintf( buffer,"%02x 00x0 %lu %lu %02x %02x %lu %02x",myPacket.size, myPacket.raw, myPacket.filtered, myPacket.dex_battery, myPacket.my_battery, myPacket.dex_src_id, myPacket.function);
+ sprintf(buffer,"%s 213 175",str_temp);// 213 is battery OK value
+ myBLE.println(buffer);
+ Serial.println(buffer);
  }
  
  String Read_SoftSerial(SoftwareSerial inputSerial)
@@ -580,8 +554,7 @@ void loop() {
     Serial.println(" ");
     Interpret_Tag();
     
-    delay(100 * 100); 
+    delay(10000 * 3); //set timer on 5-minute loop
     }  
     delay(100 * 100); 
 }
-
